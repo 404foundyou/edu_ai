@@ -5,6 +5,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import connect_db, close_db
+from routes.auth import router as auth_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -21,6 +22,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(auth_router)
 
 # Connect to MongoDB on startup
 @app.on_event("startup")

@@ -20,5 +20,8 @@ JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "24"))
 # Anthropic
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
+# Groq (temporary — free tier for testing)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 # App
 APP_ENV = os.getenv("APP_ENV", "development")

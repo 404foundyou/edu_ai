@@ -1,19 +1,18 @@
 // pages/ChatPage.jsx
-// Main chat page — shown after login
-// Contains sidebar + chat window
+// Main chat page — sidebar + chat window
+
+import ChatWindow from '../components/Chat/ChatWindow'
 
 const ChatPage = () => {
   return (
     <div className="flex h-screen bg-[#1a1a1a]">
       {/* Sidebar */}
       <div className="w-60 bg-[#171717] border-r border-[#2a2a2a]">
-        <p className="text-white p-4">Sidebar coming soon</p>
+        <p className="text-white p-4 text-sm">Sidebar coming soon</p>
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-[#666]">Chat coming in Phase 5</p>
-      </div>
+      <ChatWindow />
     </div>
   )
 }

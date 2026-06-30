@@ -1,6 +1,5 @@
 // hooks/useChat.js
 // Manages chat state and handles streaming from backend
-// This is the brain of our chat UI
 
 import { useState, useRef } from 'react'
 
@@ -10,35 +9,19 @@ export const useChat = () => {
   const [messages, setMessages] = useState([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [conversationId, setConversationId] = useState(null)
-  const abortControllerRef = useRef(null)
 
-  const sendMessage = async (text) => {
-    if (!text.trim() || isStreaming) return
-
+  const streamFromEndpoint = async (endpoint, body) => {
     const token = localStorage.getItem('token')
-
-    // Add user message immediately (optimistic update)
-    const userMessage = { role: 'user', content: text }
-    setMessages((prev) => [...prev, userMessage])
-
-    // Add empty assistant message — we'll fill it as chunks arrive
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
-
     setIsStreaming(true)
-    abortControllerRef.current = new AbortController()
 
     try {
-      const response = await fetch(`${API_URL}/chat/stream`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          conversation_id: conversationId,
-          message: text
-        }),
-        signal: abortControllerRef.current.signal
+        body: JSON.stringify(body)
       })
 
       const reader = response.body.getReader()
@@ -51,18 +34,16 @@ export const useChat = () => {
 
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n\n')
-        buffer = lines.pop() // keep incomplete line for next chunk
+        buffer = lines.pop()
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
 
-          const jsonStr = line.replace('data: ', '')
-          const data = JSON.parse(jsonStr)
+          const data = JSON.parse(line.replace('data: ', ''))
 
           if (data.type === 'conversation_id') {
             setConversationId(data.value)
           } else if (data.type === 'chunk') {
-            // Append chunk to the last (assistant) message
             setMessages((prev) => {
               const updated = [...prev]
               const lastIndex = updated.length - 1
@@ -83,6 +64,49 @@ export const useChat = () => {
     }
   }
 
+  const sendMessage = async (text) => {
+    if (!text.trim() || isStreaming) return
+
+    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
+
+    await streamFromEndpoint('/chat/stream', {
+      conversation_id: conversationId,
+      message: text
+    })
+  }
+
+  const regenerateLastMessage = async () => {
+    if (isStreaming || !conversationId) return
+
+    // Remove last assistant message from UI, add fresh empty one
+    setMessages((prev) => {
+      const updated = [...prev]
+      updated[updated.length - 1] = { role: 'assistant', content: '' }
+      return updated
+    })
+
+    await streamFromEndpoint('/chat/regenerate', {
+      conversation_id: conversationId,
+      message: ''
+    })
+  }
+
+  const editMessage = async (index, newText) => {
+    if (isStreaming) return
+
+    // Keep messages up to (not including) the edited one, update it, remove everything after
+    setMessages((prev) => {
+      const updated = prev.slice(0, index)
+      return [...updated, { role: 'user', content: newText }, { role: 'assistant', content: '' }]
+    })
+
+    await streamFromEndpoint('/chat/stream', {
+      conversation_id: conversationId,
+      message: newText
+    })
+  }
+
   const startNewChat = () => {
     setMessages([])
     setConversationId(null)
@@ -92,6 +116,8 @@ export const useChat = () => {
     messages,
     isStreaming,
     sendMessage,
+    regenerateLastMessage,
+    editMessage,
     startNewChat
   }
 }

@@ -87,3 +87,51 @@ async def chat_stream(
         yield f"data: {{\"type\": \"done\"}}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.post("/regenerate")
+async def chat_regenerate(
+    request: ChatRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    db = get_db()
+    conversation_id = request.conversation_id
+
+    # Delete the last assistant message (the one being regenerated)
+    last_assistant = await db.messages.find_one(
+        {"conversation_id": conversation_id, "role": "assistant"},
+        sort=[("created_at", -1)]
+    )
+    if last_assistant:
+        await db.messages.delete_one({"_id": last_assistant["_id"]})
+
+    # Load conversation history (without the deleted message)
+    history_cursor = db.messages.find(
+        {"conversation_id": conversation_id}
+    ).sort("created_at", 1)
+
+    history = await history_cursor.to_list(length=100)
+    claude_messages = [
+        {"role": msg["role"], "content": msg["content"]}
+        for msg in history
+    ]
+
+    async def generate():
+        full_response = ""
+
+        async for chunk in stream_claude_response(claude_messages):
+            full_response += chunk
+            safe_chunk = chunk.replace("\n", "\\n").replace('"', '\\"')
+            yield f"data: {{\"type\": \"chunk\", \"value\": \"{safe_chunk}\"}}\n\n"
+
+        ai_message = {
+            "conversation_id": conversation_id,
+            "role": "assistant",
+            "content": full_response,
+            "created_at": datetime.utcnow()
+        }
+        await db.messages.insert_one(ai_message)
+
+        yield f"data: {{\"type\": \"done\"}}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")

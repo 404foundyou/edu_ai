@@ -1,12 +1,14 @@
 // components/Chat/ChatWindow.jsx
-// Main chat container — loads existing or starts new conversation
+// Main chat container with persona switcher
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MessageBubble from './MessageBubble'
 import InputBar from './InputBar'
+import PersonaSwitcher from './PersonaSwitcher'
 import { useChat } from '../../hooks/useChat'
 
 const ChatWindow = ({ loadedMessages, onConversationCreated, onTitleGenerated }) => {
+  const [persona, setPersona] = useState('default')
 
   const {
     messages,
@@ -16,14 +18,12 @@ const ChatWindow = ({ loadedMessages, onConversationCreated, onTitleGenerated })
     editMessage,
     loadConversation,
     resetChat
-  } = useChat({ onConversationCreated, onTitleGenerated })
+  } = useChat({ onConversationCreated, onTitleGenerated, persona })
 
   const bottomRef = useRef(null)
 
-  // Load conversation or reset when sidebar selection changes
   useEffect(() => {
     if (!loadedMessages) return
-
     if (loadedMessages.conversationId === null) {
       resetChat()
     } else if (loadedMessages.conversationId) {
@@ -37,6 +37,13 @@ const ChatWindow = ({ loadedMessages, onConversationCreated, onTitleGenerated })
 
   return (
     <div className="flex-1 flex flex-col bg-[#1a1a1a]">
+
+      {/* Top bar */}
+      <div className="flex items-center justify-end px-5 py-2.5 border-b border-[#2a2a2a]">
+        <PersonaSwitcher selected={persona} onSelect={setPersona} />
+      </div>
+
+      {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2">
@@ -60,6 +67,7 @@ const ChatWindow = ({ loadedMessages, onConversationCreated, onTitleGenerated })
         )}
         <div ref={bottomRef} />
       </div>
+
       <InputBar onSend={sendMessage} isStreaming={isStreaming} />
     </div>
   )

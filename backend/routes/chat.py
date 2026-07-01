@@ -66,7 +66,8 @@ async def chat_stream(
         # Send conversation_id first so frontend knows it
         yield f"data: {{\"type\": \"conversation_id\", \"value\": \"{conversation_id}\"}}\n\n"
 
-        async for chunk in stream_claude_response(claude_messages):
+        async for chunk in stream_claude_response(claude_messages, request.persona):
+
             full_response += chunk
             safe_chunk = chunk.replace("\n", "\\n").replace('"', '\\"')
             yield f"data: {{\"type\": \"chunk\", \"value\": \"{safe_chunk}\"}}\n\n"

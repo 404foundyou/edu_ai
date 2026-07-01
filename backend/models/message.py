@@ -5,17 +5,15 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-# Single message in a conversation
 class Message(BaseModel):
-    role: str  # "user" or "assistant"
+    role: str
     content: str
 
-# What frontend sends when starting/continuing a chat
 class ChatRequest(BaseModel):
-    conversation_id: Optional[str] = None  # None = new conversation
+    conversation_id: Optional[str] = None
     message: str
+    persona: Optional[str] = "default"
 
-# What we store in MongoDB for each message
 class MessageInDB(BaseModel):
     conversation_id: str
     role: str

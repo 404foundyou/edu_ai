@@ -1,17 +1,18 @@
 // hooks/useChat.js
 // Manages chat state, streaming, and conversation loading
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import client from '../api/client'
 
 const API_URL = import.meta.env.VITE_API_URL
 
-export const useChat = ({ onConversationCreated, onTitleGenerated } = {}) => {
+export const useChat = ({ onConversationCreated, onTitleGenerated, persona = 'default' } = {}) => {
   const [messages, setMessages] = useState([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [conversationId, setConversationId] = useState(null)
+  const personaRef = useRef(persona)
+  personaRef.current = persona
 
-  // Load an existing conversation from DB
   const loadConversation = async (id) => {
     try {
       const res = await client.get(`/history/${id}`)
@@ -62,7 +63,6 @@ export const useChat = ({ onConversationCreated, onTitleGenerated } = {}) => {
               if (onConversationCreated) onConversationCreated(data.value)
             }
           } else if (data.type === 'title') {
-            // Notify parent to update sidebar title
             if (onTitleGenerated) onTitleGenerated(data.value)
           } else if (data.type === 'chunk') {
             setMessages((prev) => {
@@ -93,7 +93,8 @@ export const useChat = ({ onConversationCreated, onTitleGenerated } = {}) => {
 
     await streamFromEndpoint('/chat/stream', {
       conversation_id: conversationId,
-      message: text
+      message: text,
+      persona: personaRef.current
     })
   }
 
@@ -122,7 +123,8 @@ export const useChat = ({ onConversationCreated, onTitleGenerated } = {}) => {
 
     await streamFromEndpoint('/chat/stream', {
       conversation_id: conversationId,
-      message: newText
+      message: newText,
+      persona: personaRef.current
     })
   }
 

@@ -1,14 +1,34 @@
 // components/Chat/ChatWindow.jsx
-// Main chat container — shows messages + input bar
+// Main chat container — loads existing or starts new conversation
 
 import { useEffect, useRef } from 'react'
 import MessageBubble from './MessageBubble'
 import InputBar from './InputBar'
 import { useChat } from '../../hooks/useChat'
 
-const ChatWindow = () => {
-  const { messages, isStreaming, sendMessage, regenerateLastMessage, editMessage } = useChat()
+const ChatWindow = ({ loadedMessages, onConversationCreated }) => {
+  const {
+    messages,
+    isStreaming,
+    sendMessage,
+    regenerateLastMessage,
+    editMessage,
+    loadConversation,
+    resetChat
+  } = useChat({ onConversationCreated })
+
   const bottomRef = useRef(null)
+
+  // Load conversation or reset when sidebar selection changes
+  useEffect(() => {
+    if (!loadedMessages) return
+
+    if (loadedMessages.conversationId === null) {
+      resetChat()
+    } else if (loadedMessages.conversationId) {
+      loadConversation(loadedMessages.conversationId)
+    }
+  }, [loadedMessages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -39,7 +59,6 @@ const ChatWindow = () => {
         )}
         <div ref={bottomRef} />
       </div>
-
       <InputBar onSend={sendMessage} isStreaming={isStreaming} />
     </div>
   )

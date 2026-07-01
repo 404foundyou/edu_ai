@@ -1,14 +1,29 @@
 // hooks/useChat.js
-// Manages chat state and handles streaming from backend
+// Manages chat state, streaming, and conversation loading
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
+import client from '../api/client'
 
 const API_URL = import.meta.env.VITE_API_URL
 
-export const useChat = () => {
+export const useChat = ({ onConversationCreated } = {}) => {
   const [messages, setMessages] = useState([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [conversationId, setConversationId] = useState(null)
+
+  // Load an existing conversation from DB
+  const loadConversation = async (id) => {
+    try {
+      const res = await client.get(`/history/${id}`)
+      setMessages(res.data.map((msg) => ({
+        role: msg.role,
+        content: msg.content
+      })))
+      setConversationId(id)
+    } catch (err) {
+      console.error('Failed to load conversation:', err)
+    }
+  }
 
   const streamFromEndpoint = async (endpoint, body) => {
     const token = localStorage.getItem('token')
@@ -43,6 +58,8 @@ export const useChat = () => {
 
           if (data.type === 'conversation_id') {
             setConversationId(data.value)
+            // Notify parent that new conversation was created
+            if (onConversationCreated) onConversationCreated(data.value)
           } else if (data.type === 'chunk') {
             setMessages((prev) => {
               const updated = [...prev]
@@ -79,7 +96,6 @@ export const useChat = () => {
   const regenerateLastMessage = async () => {
     if (isStreaming || !conversationId) return
 
-    // Remove last assistant message from UI, add fresh empty one
     setMessages((prev) => {
       const updated = [...prev]
       updated[updated.length - 1] = { role: 'assistant', content: '' }
@@ -95,7 +111,6 @@ export const useChat = () => {
   const editMessage = async (index, newText) => {
     if (isStreaming) return
 
-    // Keep messages up to (not including) the edited one, update it, remove everything after
     setMessages((prev) => {
       const updated = prev.slice(0, index)
       return [...updated, { role: 'user', content: newText }, { role: 'assistant', content: '' }]
@@ -107,7 +122,7 @@ export const useChat = () => {
     })
   }
 
-  const startNewChat = () => {
+  const resetChat = () => {
     setMessages([])
     setConversationId(null)
   }
@@ -118,6 +133,7 @@ export const useChat = () => {
     sendMessage,
     regenerateLastMessage,
     editMessage,
-    startNewChat
+    loadConversation,
+    resetChat
   }
 }

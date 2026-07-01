@@ -6,7 +6,7 @@ import client from '../api/client'
 
 const API_URL = import.meta.env.VITE_API_URL
 
-export const useChat = ({ onConversationCreated } = {}) => {
+export const useChat = ({ onConversationCreated, onTitleGenerated } = {}) => {
   const [messages, setMessages] = useState([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [conversationId, setConversationId] = useState(null)
@@ -57,9 +57,13 @@ export const useChat = ({ onConversationCreated } = {}) => {
           const data = JSON.parse(line.replace('data: ', ''))
 
           if (data.type === 'conversation_id') {
-            setConversationId(data.value)
-            // Notify parent that new conversation was created
-            if (onConversationCreated) onConversationCreated(data.value)
+            if (!conversationId) {
+              setConversationId(data.value)
+              if (onConversationCreated) onConversationCreated(data.value)
+            }
+          } else if (data.type === 'title') {
+            // Notify parent to update sidebar title
+            if (onTitleGenerated) onTitleGenerated(data.value)
           } else if (data.type === 'chunk') {
             setMessages((prev) => {
               const updated = [...prev]

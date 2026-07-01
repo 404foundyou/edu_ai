@@ -6,7 +6,8 @@ import MessageBubble from './MessageBubble'
 import InputBar from './InputBar'
 import { useChat } from '../../hooks/useChat'
 
-const ChatWindow = ({ loadedMessages, onConversationCreated }) => {
+const ChatWindow = ({ loadedMessages, onConversationCreated, onTitleGenerated }) => {
+
   const {
     messages,
     isStreaming,
@@ -15,7 +16,7 @@ const ChatWindow = ({ loadedMessages, onConversationCreated }) => {
     editMessage,
     loadConversation,
     resetChat
-  } = useChat({ onConversationCreated })
+  } = useChat({ onConversationCreated, onTitleGenerated })
 
   const bottomRef = useRef(null)
 

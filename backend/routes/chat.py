@@ -10,6 +10,8 @@ from models.message import ChatRequest
 from services.claude_service import stream_claude_response
 from middleware.auth_middleware import get_current_user
 from database import get_db
+from services.claude_service import stream_claude_response, generate_title
+
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -59,17 +61,17 @@ async def chat_stream(
     # ── Step 4: Stream response from Claude ───────────────────
     async def generate():
         full_response = ""
+        is_new_conversation = not request.conversation_id
 
         # Send conversation_id first so frontend knows it
         yield f"data: {{\"type\": \"conversation_id\", \"value\": \"{conversation_id}\"}}\n\n"
 
         async for chunk in stream_claude_response(claude_messages):
             full_response += chunk
-            # Escape newlines for SSE format
             safe_chunk = chunk.replace("\n", "\\n").replace('"', '\\"')
             yield f"data: {{\"type\": \"chunk\", \"value\": \"{safe_chunk}\"}}\n\n"
 
-        # Save Claude's full response to DB after streaming completes
+        # Save Claude's full response to DB
         ai_message = {
             "conversation_id": conversation_id,
             "role": "assistant",
@@ -78,11 +80,24 @@ async def chat_stream(
         }
         await db.messages.insert_one(ai_message)
 
-        # Update conversation's updated_at timestamp
-        await db.conversations.update_one(
-            {"_id": ObjectId(conversation_id)},
-            {"$set": {"updated_at": datetime.utcnow()}}
-        )
+        # Generate title only for brand new conversations
+        if is_new_conversation:
+            title = generate_title(request.message, full_response)
+            await db.conversations.update_one(
+                {"_id": ObjectId(conversation_id)},
+                {"$set": {
+                    "title": title,
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            # Send title to frontend
+            safe_title = title.replace('"', '\\"')
+            yield f"data: {{\"type\": \"title\", \"value\": \"{safe_title}\"}}\n\n"
+        else:
+            await db.conversations.update_one(
+                {"_id": ObjectId(conversation_id)},
+                {"$set": {"updated_at": datetime.utcnow()}}
+            )
 
         yield f"data: {{\"type\": \"done\"}}\n\n"
 
